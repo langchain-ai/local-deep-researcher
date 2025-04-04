@@ -1,5 +1,5 @@
 [project]
-name = "ollama-deep-researcher"
+name = "gemini-deep-researcher"
 version = "0.0.1"
 description = "Fully local web research and summarization assistant with Ollama and LangGraph."
 authors = [
@@ -12,10 +12,7 @@ dependencies = [
     "langgraph>=0.2.55",
     "langchain-community>=0.3.9",
     "tavily-python>=0.5.0",
-    "langchain-ollama>=0.2.1",
     "duckduckgo-search>=7.3.0",
-    "langchain-openai>=0.1.1",
-    "openai>=1.12.0",
     "langchain_openai>=0.3.9",
     "httpx>=0.28.1",
     "markdownify>=0.11.0",
@@ -31,10 +28,10 @@ requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["ollama_deep_researcher"]
+packages = ["gemini_deep_researcher"]
 
 [tool.setuptools.package-dir]
-"ollama_deep_researcher" = "src/ollama_deep_researcher"
+"gemini_deep_researcher" = "src/gemini_deep_researcher"
 
 [tool.setuptools.package-data]
 "*" = ["py.typed"]

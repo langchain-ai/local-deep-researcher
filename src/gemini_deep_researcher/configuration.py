@@ -13,21 +13,16 @@ class SearchAPI(Enum):
 
 class Configuration(BaseModel):
     """The configurable fields for the research assistant."""
-
+    
     max_web_research_loops: int = Field(
         default=3,
         title="Research Depth",
         description="Number of research iterations to perform"
     )
     llm_name: str = Field(
-        default="gemini-2.0-flash",
+        default="gemini-2.5-pro-preview-03-25",
         title="LLM Model Name",
         description="Name of the LLM model to use"
-    )
-    llm_provider: Literal["ollama", "lmstudio", "gemini"] = Field(
-        default="gemini",
-        title="LLM Provider",
-        description="Provider for the LLM (Ollama, LMStudio, or gemini)"
     )
     search_api: Literal["perplexity", "tavily", "duckduckgo", "searxng"] = Field(
         default="duckduckgo",
@@ -38,16 +33,6 @@ class Configuration(BaseModel):
         default=True,
         title="Fetch Full Page",
         description="Include the full page content in the search results"
-    )
-    ollama_base_url: str = Field(
-        default="http://localhost:11434/",
-        title="Ollama Base URL",
-        description="Base URL for Ollama API"
-    )
-    lmstudio_base_url: str = Field(
-        default="http://localhost:1234/v1",
-        title="LMStudio Base URL",
-        description="Base URL for LMStudio OpenAI-compatible API"
     )
     strip_thinking_tokens: bool = Field(
         default=True,
