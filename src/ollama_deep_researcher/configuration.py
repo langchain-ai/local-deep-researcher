@@ -19,15 +19,15 @@ class Configuration(BaseModel):
         title="Research Depth",
         description="Number of research iterations to perform"
     )
-    local_llm: str = Field(
-        default="llama3.2",
+    llm_name: str = Field(
+        default="gemini-2.0-flash",
         title="LLM Model Name",
         description="Name of the LLM model to use"
     )
-    llm_provider: Literal["ollama", "lmstudio"] = Field(
-        default="ollama",
+    llm_provider: Literal["ollama", "lmstudio", "gemini"] = Field(
+        default="gemini",
         title="LLM Provider",
-        description="Provider for the LLM (Ollama or LMStudio)"
+        description="Provider for the LLM (Ollama, LMStudio, or gemini)"
     )
     search_api: Literal["perplexity", "tavily", "duckduckgo", "searxng"] = Field(
         default="duckduckgo",

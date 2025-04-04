@@ -2,6 +2,8 @@
 
 Local Deep Researcher is a fully local web research assistant that uses any LLM hosted by [Ollama](https://ollama.com/search) or [LMStudio](https://lmstudio.ai/). Give it a topic and it will generate a web search query, gather web search results, summarize the results of web search, reflect on the summary to examine knowledge gaps, generate a new search query to address the gaps, and repeat for a user-defined number of cycles. It will provide the user a final markdown summary with all sources used to generate the summary.
 
+For users without a capable system to run local models, **Local Deep Researcher** now supports the **Gemini API**, allowing efficient cloud-based research while maintaining the same iterative deep research process.
+
 ![ollama-deep-research](https://github.com/user-attachments/assets/1c6b28f8-6b64-42ba-a491-1ab2875d50ea)
 
 Short summary video:
@@ -61,6 +63,19 @@ LOCAL_LLM=model # the model to use, defaults to `llama3.2` if not set
 LLM_PROVIDER=lmstudio
 LOCAL_LLM=qwen_qwq-32b  # Use the exact model name as shown in LMStudio
 LMSTUDIO_BASE_URL=http://localhost:1234/v1
+```
+
+### Using Gemini API for Research
+If you do not have a system capable of running local models, you can use the Gemini API:
+
+1. Obtain an API key from [Google AI Studio](https://aistudio.google.com/).
+2. Create API Key
+3. Configure the `.env` file:
+
+```bash
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your_api_key_here
+LOCAL_LLM=gemini-2.0-flash
 ```
 
 ### Selecting search tool

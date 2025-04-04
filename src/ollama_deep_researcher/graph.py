@@ -1,10 +1,11 @@
 import json
-
+import os
 from typing_extensions import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import START, END, StateGraph
 
 from ollama_deep_researcher.configuration import Configuration, SearchAPI
@@ -42,14 +43,20 @@ def generate_query(state: SummaryState, config: RunnableConfig):
     if configurable.llm_provider == "lmstudio":
         llm_json_mode = ChatLMStudio(
             base_url=configurable.lmstudio_base_url, 
-            model=configurable.local_llm, 
+            model=configurable.llm_name, 
             temperature=0, 
             format="json"
+        )
+    elif configurable.llm_provider == "gemini":
+        llm_json_mode = ChatGoogleGenerativeAI(
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            model=configurable.llm_name, 
+            temperature=0
         )
     else: # Default to Ollama
         llm_json_mode = ChatOllama(
             base_url=configurable.ollama_base_url, 
-            model=configurable.local_llm, 
+            model=configurable.llm_name, 
             temperature=0, 
             format="json"
         )
@@ -152,13 +159,19 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
     if configurable.llm_provider == "lmstudio":
         llm = ChatLMStudio(
             base_url=configurable.lmstudio_base_url, 
-            model=configurable.local_llm, 
+            model=configurable.llm_name, 
+            temperature=0
+        )
+    elif configurable.llm_provider == "gemini":
+        llm = ChatGoogleGenerativeAI(
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            model=configurable.llm_name, 
             temperature=0
         )
     else:  # Default to Ollama
         llm = ChatOllama(
             base_url=configurable.ollama_base_url, 
-            model=configurable.local_llm, 
+            model=configurable.llm_name, 
             temperature=0
         )
     
@@ -196,14 +209,19 @@ def reflect_on_summary(state: SummaryState, config: RunnableConfig):
     if configurable.llm_provider == "lmstudio":
         llm_json_mode = ChatLMStudio(
             base_url=configurable.lmstudio_base_url, 
-            model=configurable.local_llm, 
-            temperature=0, 
-            format="json"
+            model=configurable.llm_name, 
+            temperature=0
+        )
+    elif configurable.llm_provider == "gemini":
+        llm_json_mode = ChatGoogleGenerativeAI(
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            model=configurable.llm_name, 
+            temperature=0
         )
     else: # Default to Ollama
         llm_json_mode = ChatOllama(
             base_url=configurable.ollama_base_url, 
-            model=configurable.local_llm, 
+            model=configurable.llm_name, 
             temperature=0, 
             format="json"
         )
