@@ -79,6 +79,14 @@ Format your response as a JSON object with these exact keys:
 - follow_up_query: Write a specific question to address this gap
 </FORMAT>
 
+<EXAMPLE>
+Example output:
+{{
+    "knowledge_gap": "The summary lacks information about performance metrics and benchmarks",
+    "follow_up_query": "What are typical performance benchmarks and metrics used to evaluate [specific technology]?"
+}}
+</EXAMPLE>
+
 <Task>
 Reflect carefully on the Summary to identify knowledge gaps and produce a follow-up query. Then, produce your output following this JSON format:
 {{
