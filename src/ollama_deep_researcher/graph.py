@@ -61,6 +61,8 @@ def generate_query(state: SummaryState, config: RunnableConfig):
     
     # Get the content
     content = result.content
+    if configurable.strip_thinking_tokens:
+        content = strip_thinking_tokens(content)
 
     # Parse the JSON response and get the query
     try:
@@ -68,8 +70,6 @@ def generate_query(state: SummaryState, config: RunnableConfig):
         search_query = query['query']
     except (json.JSONDecodeError, KeyError):
         # If parsing fails or the key is not found, use a fallback query
-        if configurable.strip_thinking_tokens:
-            content = strip_thinking_tokens(content)
         search_query = content
     return {"search_query": search_query}
 
@@ -212,11 +212,15 @@ def reflect_on_summary(state: SummaryState, config: RunnableConfig):
         [SystemMessage(content=reflection_instructions.format(research_topic=state.research_topic)),
         HumanMessage(content=f"Reflect on our existing knowledge: \n === \n {state.running_summary}, \n === \n And now identify a knowledge gap and generate a follow-up web search query:")]
     )
-    
     # Strip thinking tokens if configured
+    content = result.content
+    if configurable.strip_thinking_tokens:
+        # Generally a good idea, some models generate the think tags even though not explicitly asked to.
+        content = strip_thinking_tokens(content)
+
     try:
         # Try to parse as JSON first
-        reflection_content = json.loads(result.content)
+        reflection_content = json.loads(content)
         # Get the follow-up query
         query = reflection_content.get('follow_up_query')
         # Check if query is None or empty
