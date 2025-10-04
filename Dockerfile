@@ -17,23 +17,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install uv
 ENV PATH="/root/.local/bin:${PATH}"
 
-# 2) Copy the repository content
+# Copy the repository content
 COPY . /app
 
-# 3) Provide default environment variables to point to Ollama (running elsewhere)
-#    Adjust the OLLAMA_URL to match your actual Ollama container or service.
+# Install dependencies using uv
+RUN uv sync
+
+# Provide default environment variables
 ENV OLLAMA_BASE_URL="http://localhost:11434/"
+ENV LLM_MODEL="llama3.2"
 
-# 4) Expose the port that LangGraph dev server uses (default: 2024)
-EXPOSE 2024
+# Expose the port for FastAPI service
+EXPOSE 8000
 
-# 5) Launch the assistant with the LangGraph dev server:
-#    Equivalent to the quickstart: uvx --refresh --from "langgraph-cli[inmem]" --with-editable . --python 3.11 langgraph dev
-CMD ["uvx", \
-     "--refresh", \
-     "--from", "langgraph-cli[inmem]", \
-     "--with-editable", ".", \
-     "--python", "3.11", \
-     "langgraph", \
-     "dev", \
-     "--host", "0.0.0.0"]
+# Launch the FastAPI application with uvicorn
+CMD ["uv", "run", "uvicorn", "ollama_deep_researcher.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

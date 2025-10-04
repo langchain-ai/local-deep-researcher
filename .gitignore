@@ -1,0 +1,74 @@
+# 仮想環境
+.venv/
+venv/
+env/
+ENV/
+.env/
+
+# Pythonキャッシュファイル
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# パッケージングと配布
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+.Python/
+
+# インストーラーログ
+pip-log.txt
+
+# ruff
+.ruff_cache/
+
+# mypy
+.mypy_cache/
+
+# pytest
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# editor config
+.vscode/
+.idea/
+.claude/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# IPython profiles
+profile_default/
+ipython_config.py
+
+# 環境変数ファイル
+.env
+.env.*
+!*.env.example
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ログファイル
+*.log
+*.log.*
+
+# データベースファイル
+*.sqlite3
+*.db
+
+# 一時ファイル
+.tmp/*

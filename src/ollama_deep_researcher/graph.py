@@ -1,45 +1,44 @@
 import json
 
-from pydantic import BaseModel, Field
-from typing_extensions import Literal
-
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
-from langgraph.graph import START, END, StateGraph
+from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
+from typing_extensions import Literal
 
-from ollama_deep_researcher.configuration import Configuration, SearchAPI
-from ollama_deep_researcher.utils import (
-    deduplicate_and_format_sources,
-    tavily_search,
-    format_sources,
-    perplexity_search,
-    duckduckgo_search,
-    searxng_search,
-    strip_thinking_tokens,
-    get_config_value,
+from ollama_deep_researcher.configuration import Configuration
+from ollama_deep_researcher.prompts import (
+    get_current_date,
+    json_mode_query_instructions,
+    json_mode_reflection_instructions,
+    query_writer_instructions,
+    reflection_instructions,
+    summarizer_instructions,
+    tool_calling_query_instructions,
+    tool_calling_reflection_instructions,
 )
 from ollama_deep_researcher.state import (
     SummaryState,
     SummaryStateInput,
     SummaryStateOutput,
 )
-from ollama_deep_researcher.prompts import (
-    query_writer_instructions,
-    summarizer_instructions,
-    reflection_instructions,
-    get_current_date,
-    json_mode_query_instructions,
-    tool_calling_query_instructions,
-    json_mode_reflection_instructions,
-    tool_calling_reflection_instructions,
+from ollama_deep_researcher.utils import (
+    deduplicate_and_format_sources,
+    duckduckgo_search,
+    format_sources,
+    get_config_value,
+    perplexity_search,
+    searxng_search,
+    strip_thinking_tokens,
+    tavily_search,
 )
-from ollama_deep_researcher.lmstudio import ChatLMStudio
 
 # Constants
 MAX_TOKENS_PER_SOURCE = 1000
 CHARS_PER_TOKEN = 4
+
 
 def generate_search_query_with_structured_output(
     configurable: Configuration,
@@ -50,7 +49,7 @@ def generate_search_query_with_structured_output(
     json_query_field: str,
 ):
     """Helper function to generate search queries using either tool calling or JSON mode.
-    
+
     Args:
         configurable: Configuration object
         messages: List of messages to send to LLM
@@ -58,7 +57,7 @@ def generate_search_query_with_structured_output(
         fallback_query: Fallback search query if extraction fails
         tool_query_field: Field name in tool args containing the query
         json_query_field: Field name in JSON response containing the query
-        
+
     Returns:
         Dictionary with "search_query" key
     """
@@ -68,14 +67,14 @@ def generate_search_query_with_structured_output(
 
         if not result.tool_calls:
             return {"search_query": fallback_query}
-        
+
         try:
             tool_data = result.tool_calls[0]["args"]
             search_query = tool_data.get(tool_query_field)
             return {"search_query": search_query}
         except (IndexError, KeyError):
             return {"search_query": fallback_query}
-    
+
     else:
         # Use JSON mode
         llm = get_llm(configurable)
@@ -94,45 +93,32 @@ def generate_search_query_with_structured_output(
                 content = strip_thinking_tokens(content)
             return {"search_query": fallback_query}
 
-def get_llm(configurable: Configuration):
-    """Helper function to initialize LLM based on configuration.
 
-    Uses JSON mode if use_tool_calling is False, otherwise regular mode for tool calling.
+def get_llm(configurable: Configuration):
+    """Initialize ChatOllama LLM based on configuration.
+
+    Uses JSON mode if use_tool_calling is False, otherwise regular mode.
 
     Args:
         configurable: Configuration object containing LLM settings
 
     Returns:
-        Configured LLM instance
+        Configured ChatOllama instance
     """
-    if configurable.llm_provider == "lmstudio":
-        if configurable.use_tool_calling:
-            return ChatLMStudio(
-                base_url=configurable.lmstudio_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-            )
-        else:
-            return ChatLMStudio(
-                base_url=configurable.lmstudio_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-                format="json",
-            )
-    else:  # Default to Ollama
-        if configurable.use_tool_calling:
-            return ChatOllama(
-                base_url=configurable.ollama_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-            )
-        else:
-            return ChatOllama(
-                base_url=configurable.ollama_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-                format="json",
-            )
+    if configurable.use_tool_calling:
+        return ChatOllama(
+            base_url=configurable.ollama_base_url,
+            model=configurable.local_llm,
+            temperature=0,
+        )
+    else:
+        return ChatOllama(
+            base_url=configurable.ollama_base_url,
+            model=configurable.local_llm,
+            temperature=0,
+            format="json",
+        )
+
 
 # Nodes
 def generate_query(state: SummaryState, config: RunnableConfig):
@@ -171,8 +157,10 @@ def generate_query(state: SummaryState, config: RunnableConfig):
 
     messages = [
         SystemMessage(
-            content=formatted_prompt + (
-                tool_calling_query_instructions if configurable.use_tool_calling 
+            content=formatted_prompt
+            + (
+                tool_calling_query_instructions
+                if configurable.use_tool_calling
                 else json_mode_query_instructions
             )
         ),
@@ -194,6 +182,7 @@ def web_research(state: SummaryState, config: RunnableConfig):
 
     Executes a web search using the configured search API (tavily, perplexity,
     duckduckgo, or searxng) and formats the results for further processing.
+    Includes comprehensive error handling to ensure graceful degradation.
 
     Args:
         state: Current graph state containing the search query and research loop count
@@ -209,57 +198,66 @@ def web_research(state: SummaryState, config: RunnableConfig):
     # Get the search API
     search_api = get_config_value(configurable.search_api)
 
-    # Search the web
-    if search_api == "tavily":
-        search_results = tavily_search(
-            state.search_query,
-            fetch_full_page=configurable.fetch_full_page,
-            max_results=1,
-        )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-    elif search_api == "perplexity":
-        search_results = perplexity_search(
-            state.search_query, state.research_loop_count
-        )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-    elif search_api == "duckduckgo":
-        search_results = duckduckgo_search(
-            state.search_query,
-            max_results=3,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-    elif search_api == "searxng":
-        search_results = searxng_search(
-            state.search_query,
-            max_results=3,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-    else:
-        raise ValueError(f"Unsupported search API: {configurable.search_api}")
+    try:
+        # Search the web
+        if search_api == "tavily":
+            search_results = tavily_search(
+                state.search_query,
+                fetch_full_page=configurable.fetch_full_page,
+                max_results=1,
+            )
+            search_str = deduplicate_and_format_sources(
+                search_results,
+                max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
+                fetch_full_page=configurable.fetch_full_page,
+            )
+        elif search_api == "perplexity":
+            search_results = perplexity_search(
+                state.search_query, state.research_loop_count
+            )
+            search_str = deduplicate_and_format_sources(
+                search_results,
+                max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
+                fetch_full_page=configurable.fetch_full_page,
+            )
+        elif search_api == "duckduckgo":
+            search_results = duckduckgo_search(
+                state.search_query,
+                max_results=3,
+                fetch_full_page=configurable.fetch_full_page,
+            )
+            search_str = deduplicate_and_format_sources(
+                search_results,
+                max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
+                fetch_full_page=configurable.fetch_full_page,
+            )
+        elif search_api == "searxng":
+            search_results = searxng_search(
+                state.search_query,
+                max_results=3,
+                fetch_full_page=configurable.fetch_full_page,
+            )
+            search_str = deduplicate_and_format_sources(
+                search_results,
+                max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
+                fetch_full_page=configurable.fetch_full_page,
+            )
+        else:
+            raise ValueError(f"Unsupported search API: {configurable.search_api}")
 
-    return {
-        "sources_gathered": [format_sources(search_results)],
-        "research_loop_count": state.research_loop_count + 1,
-        "web_research_results": [search_str],
-    }
+        return {
+            "sources_gathered": [format_sources(search_results)],
+            "research_loop_count": state.research_loop_count + 1,
+            "web_research_results": [search_str],
+        }
+    except Exception as e:
+        # Log error but continue with empty results
+        print(f"Web research error: {str(e)}")
+        return {
+            "sources_gathered": ["Error fetching sources"],
+            "research_loop_count": state.research_loop_count + 1,
+            "web_research_results": [f"Search failed: {str(e)}"],
+        }
 
 
 def summarize_sources(state: SummaryState, config: RunnableConfig):
@@ -267,6 +265,7 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
 
     Uses an LLM to create or update a running summary based on the newest web research
     results, integrating them with any existing summary.
+    Includes error handling to ensure graceful degradation.
 
     Args:
         state: Current graph state containing research topic, running summary,
@@ -277,55 +276,51 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
         Dictionary with state update, including running_summary key containing the updated summary
     """
 
-    # Existing summary
-    existing_summary = state.running_summary
+    try:
+        # Existing summary
+        existing_summary = state.running_summary
 
-    # Most recent web research
-    most_recent_web_research = state.web_research_results[-1]
+        # Most recent web research
+        most_recent_web_research = state.web_research_results[-1]
 
-    # Build the human message
-    if existing_summary:
-        human_message_content = (
-            f"<Existing Summary> \n {existing_summary} \n <Existing Summary>\n\n"
-            f"<New Context> \n {most_recent_web_research} \n <New Context>"
-            f"Update the Existing Summary with the New Context on this topic: \n <User Input> \n {state.research_topic} \n <User Input>\n\n"
-        )
-    else:
-        human_message_content = (
-            f"<Context> \n {most_recent_web_research} \n <Context>"
-            f"Create a Summary using the Context on this topic: \n <User Input> \n {state.research_topic} \n <User Input>\n\n"
-        )
+        # Build the human message
+        if existing_summary:
+            human_message_content = (
+                f"<Existing Summary> \n {existing_summary} \n <Existing Summary>\n\n"
+                f"<New Context> \n {most_recent_web_research} \n <New Context>"
+                f"Update the Existing Summary with the New Context on this topic: \n <User Input> \n {state.research_topic} \n <User Input>\n\n"
+            )
+        else:
+            human_message_content = (
+                f"<Context> \n {most_recent_web_research} \n <Context>"
+                f"Create a Summary using the Context on this topic: \n <User Input> \n {state.research_topic} \n <User Input>\n\n"
+            )
 
-    # Run the LLM
-    configurable = Configuration.from_runnable_config(config)
-
-    # For summarization, we don't need structured output, so always use regular mode
-    if configurable.llm_provider == "lmstudio":
-        llm = ChatLMStudio(
-            base_url=configurable.lmstudio_base_url,
-            model=configurable.local_llm,
-            temperature=0,
-        )
-    else:  # Default to Ollama
+        # Run the LLM
+        configurable = Configuration.from_runnable_config(config)
         llm = ChatOllama(
             base_url=configurable.ollama_base_url,
             model=configurable.local_llm,
             temperature=0,
         )
 
-    result = llm.invoke(
-        [
-            SystemMessage(content=summarizer_instructions),
-            HumanMessage(content=human_message_content),
-        ]
-    )
+        result = llm.invoke(
+            [
+                SystemMessage(content=summarizer_instructions),
+                HumanMessage(content=human_message_content),
+            ]
+        )
 
-    # Strip thinking tokens if configured
-    running_summary = result.content
-    if configurable.strip_thinking_tokens:
-        running_summary = strip_thinking_tokens(running_summary)
+        # Strip thinking tokens if configured
+        running_summary = result.content
+        if configurable.strip_thinking_tokens:
+            running_summary = strip_thinking_tokens(running_summary)
 
-    return {"running_summary": running_summary}
+        return {"running_summary": running_summary}
+    except Exception as e:
+        # Log error but preserve existing summary or return fallback
+        print(f"Summarization error: {str(e)}")
+        return {"running_summary": state.running_summary or "Summary generation failed"}
 
 
 def reflect_on_summary(state: SummaryState, config: RunnableConfig):
@@ -364,8 +359,10 @@ def reflect_on_summary(state: SummaryState, config: RunnableConfig):
 
     messages = [
         SystemMessage(
-            content=formatted_prompt + (
-                tool_calling_reflection_instructions if configurable.use_tool_calling 
+            content=formatted_prompt
+            + (
+                tool_calling_reflection_instructions
+                if configurable.use_tool_calling
                 else json_mode_reflection_instructions
             )
         ),
@@ -390,12 +387,13 @@ def finalize_summary(state: SummaryState):
     Prepares the final output by deduplicating and formatting sources, then
     combining them with the running summary to create a well-structured
     research report with proper citations.
+    Populates success/error metadata for API response.
 
     Args:
         state: Current graph state containing the running summary and sources gathered
 
     Returns:
-        Dictionary with state update, including running_summary key containing the formatted final summary with sources
+        Dictionary with state update, including running_summary, success, sources, and error_message
     """
 
     # Deduplicate sources before joining
@@ -410,12 +408,38 @@ def finalize_summary(state: SummaryState):
                 seen_sources.add(line)
                 unique_sources.append(line)
 
+    # Extract source URLs
+    source_urls = []
+    for line in unique_sources:
+        # Look for lines that start with http
+        if line.strip().startswith("http"):
+            source_urls.append(line.strip())
+
+    # Determine success based on content quality
+    has_summary = bool(state.running_summary and len(state.running_summary) > 50)
+    has_sources = len(source_urls) > 0
+    success = has_summary and has_sources
+
+    # Set error message if not successful
+    error_message = None
+    if not success:
+        if not has_summary:
+            error_message = "Failed to generate summary"
+        elif not has_sources:
+            error_message = "No sources found"
+
     # Join the deduplicated sources
     all_sources = "\n".join(unique_sources)
-    state.running_summary = (
+    formatted_summary = (
         f"## Summary\n{state.running_summary}\n\n ### Sources:\n{all_sources}"
     )
-    return {"running_summary": state.running_summary}
+
+    return {
+        "running_summary": formatted_summary,
+        "success": success,
+        "sources": source_urls,
+        "error_message": error_message,
+    }
 
 
 def route_research(

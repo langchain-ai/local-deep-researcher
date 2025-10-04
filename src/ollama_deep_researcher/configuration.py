@@ -1,9 +1,9 @@
 import os
 from enum import Enum
-from pydantic import BaseModel, Field
-from typing import Any, Optional, Literal
+from typing import Any, Literal, Optional
 
 from langchain_core.runnables import RunnableConfig
+from pydantic import BaseModel, Field
 
 
 class SearchAPI(Enum):
@@ -26,11 +26,6 @@ class Configuration(BaseModel):
         title="LLM Model Name",
         description="Name of the LLM model to use",
     )
-    llm_provider: Literal["ollama", "lmstudio"] = Field(
-        default="ollama",
-        title="LLM Provider",
-        description="Provider for the LLM (Ollama or LMStudio)",
-    )
     search_api: Literal["perplexity", "tavily", "duckduckgo", "searxng"] = Field(
         default="duckduckgo", title="Search API", description="Web search API to use"
     )
@@ -43,11 +38,6 @@ class Configuration(BaseModel):
         default="http://localhost:11434/",
         title="Ollama Base URL",
         description="Base URL for Ollama API",
-    )
-    lmstudio_base_url: str = Field(
-        default="http://localhost:1234/v1",
-        title="LMStudio Base URL",
-        description="Base URL for LMStudio OpenAI-compatible API",
     )
     strip_thinking_tokens: bool = Field(
         default=True,
@@ -69,11 +59,35 @@ class Configuration(BaseModel):
             config["configurable"] if config and "configurable" in config else {}
         )
 
-        # Get raw values from environment or config
-        raw_values: dict[str, Any] = {
-            name: os.environ.get(name.upper(), configurable.get(name))
-            for name in cls.model_fields.keys()
+        # Environment variable name mappings (env_var_name -> field_name)
+        env_mappings = {
+            "LLM_MODEL": "local_llm",
+            "OLLAMA_BASE_URL": "ollama_base_url",
         }
+
+        # Get raw values from environment or config
+        # Priority: configurable > environment > defaults
+        raw_values: dict[str, Any] = {}
+        for name in cls.model_fields.keys():
+            # Check if value is in configurable first (highest priority)
+            if name in configurable:
+                raw_values[name] = configurable[name]
+                continue
+
+            # Check custom env mapping
+            env_name = None
+            for env_var, field_name in env_mappings.items():
+                if field_name == name:
+                    env_name = env_var
+                    break
+
+            # Get from environment (use custom name if available)
+            if env_name and env_name in os.environ:
+                raw_values[name] = os.environ[env_name]
+            elif name.upper() in os.environ:
+                raw_values[name] = os.environ[name.upper()]
+            else:
+                raw_values[name] = None
 
         # Filter out None values
         values = {k: v for k, v in raw_values.items() if v is not None}

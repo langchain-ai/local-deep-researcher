@@ -14,55 +14,72 @@ dependencies = [
     "tavily-python>=0.5.0",
     "langchain-ollama>=0.3.6",
     "duckduckgo-search>=7.3.0",
-    "langchain-openai>=0.1.1",
-    "openai>=1.12.0",
-    "langchain_openai>=0.3.9",
     "httpx>=0.28.1",
     "markdownify>=0.11.0",
     "python-dotenv==1.0.1",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-json-logger>=2.0.0",
 ]
-
-[project.optional-dependencies]
-dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
-
-[build-system]
-requires = ["setuptools>=73.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["ollama_deep_researcher"]
-
-[tool.setuptools.package-dir]
-"ollama_deep_researcher" = "src/ollama_deep_researcher"
-
-[tool.setuptools.package-data]
-"*" = ["py.typed"]
-
-[tool.ruff]
-lint.select = [
-    "E",    # pycodestyle
-    "F",    # pyflakes
-    "I",    # isort
-    "D",    # pydocstyle
-    "D401", # First line should be in imperative mood
-    "T201",
-    "UP",
-]
-lint.ignore = [
-    "UP006",
-    "UP007",
-    "UP035",
-    "D417",
-    "E501",
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "UP"]
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.12.7",
+    "black>=25.1.0",
+    "ruff>=0.6.1",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
 ]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ollama_deep_researcher"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+asyncio_mode = "auto"
+addopts = "-v -s --tb=short"
+
+[tool.black]
+target-version = ['py312']
+exclude = '''
+/(
+    \.git
+    | \.mypy_cache
+    | \.uv-cache
+    | \.venv
+    | venv
+    | env
+    | build
+    | dist
+    | .*/(bin|lib|share|etc)
+    | .*/pyvenv\.cfg
+)/
+'''
+
+[tool.ruff]
+target-version = "py312"
+exclude = [
+    "__pycache__",
+    "migrations",
+    "db.sqlite3",
+    "*.pyc",
+    ".uv-cache",
+    ".venv",
+    "venv",
+    "env",
+    "*/bin/**",
+    "*/lib/**",
+    "*/share/**",
+    "*/etc/**",
+    "*/pyvenv.cfg"
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"] # E501 (line too long) is ignored

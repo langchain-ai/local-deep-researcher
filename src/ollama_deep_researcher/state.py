@@ -1,5 +1,6 @@
 import operator
 from dataclasses import dataclass, field
+
 from typing_extensions import Annotated
 
 
@@ -20,4 +21,7 @@ class SummaryStateInput:
 
 @dataclass(kw_only=True)
 class SummaryStateOutput:
+    success: bool = field(default=False)  # Whether research completed successfully
     running_summary: str = field(default=None)  # Final report
+    sources: list[str] = field(default_factory=list)  # List of source URLs
+    error_message: str = field(default=None)  # Descriptive error if failed

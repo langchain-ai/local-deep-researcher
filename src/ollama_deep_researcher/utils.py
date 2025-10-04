@@ -1,14 +1,13 @@
 import os
+from typing import Any, Dict, List, Optional, Union
+
 import httpx
 import requests
-from typing import Dict, Any, List, Union, Optional
-
-from markdownify import markdownify
-from langsmith import traceable
-from tavily import TavilyClient
 from duckduckgo_search import DDGS
-
 from langchain_community.utilities import SearxSearchWrapper
+from langsmith import traceable
+from markdownify import markdownify
+from tavily import TavilyClient
 
 # Constants
 CHARS_PER_TOKEN = 4
