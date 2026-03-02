@@ -210,7 +210,7 @@ $ docker run --rm -it -p 2024:2024 \
   local-deep-researcher
 ```
 
-NOTE: You will see log message:
+NOTE: You will see the following log message:
 ```
 2025-02-10T13:45:04.784915Z [info     ] 🎨 Opening Studio in your browser... [browser_opener] api_variant=local_dev message=🎨 Opening Studio in your browser...
 URL: https://smith.langchain.com/studio/?baseUrl=http://0.0.0.0:2024
