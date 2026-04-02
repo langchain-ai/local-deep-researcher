@@ -34,9 +34,15 @@ Note:
 
 import json
 import os
+from pathlib import Path
 from typing import Annotated
 
-from autogen import (
+from dotenv import load_dotenv
+
+# Load .env from project root so OPENAI_API_KEY is available
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+from autogen import (  # noqa: E402
     AssistantAgent,
     GroupChat,
     GroupChatManager,
@@ -44,7 +50,7 @@ from autogen import (
     UserProxyAgent,
 )
 
-from ollama_deep_researcher.graph import graph
+from ollama_deep_researcher.graph import graph  # noqa: E402
 
 
 def _run_research(topic: str, max_loops: int = 3) -> dict:
