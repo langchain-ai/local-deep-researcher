@@ -11,7 +11,7 @@ requires-python = ">=3.10"
 dependencies = [
     "langgraph>=1.1.0",
     "langchain-community>=0.4.0",
-    "tavily-python>=0.5.0",
+    "tavily-python>=0.7.23",
     "langchain-ollama>=1.0.0",
     "duckduckgo-search>=7.3.0",
     "langchain-openai>=1.1.0",
