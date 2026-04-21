@@ -1,0 +1,24 @@
+{
+  "dockerfile_lines": [
+    "USER root",
+    "RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev && rm -rf /var/lib/apt/lists/*"
+  ],
+  "graphs": {
+    "ollama_deep_researcher": "./src/ollama_deep_researcher/graph.py:graph"
+  },
+  "python_version": "3.11",
+  "env": "./.env",
+  "dependencies": [
+    ".",
+    "langgraph-checkpoint-postgres",
+    "psycopg2-binary",
+    "langchain-ollama",
+    "langchain-openai",
+    "langchain-community",
+    "tavily-python",
+    "duckduckgo-search",
+    "markdownify",
+    "httpx",
+    "requests"
+  ]
+}
