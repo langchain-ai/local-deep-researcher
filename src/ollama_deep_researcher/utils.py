@@ -7,6 +7,7 @@ from markdownify import markdownify
 from langsmith import traceable
 from tavily import TavilyClient
 from duckduckgo_search import DDGS
+from exa_py import Exa
 
 from langchain_community.utilities import SearxSearchWrapper
 
@@ -381,6 +382,87 @@ def perplexity_search(
                 "url": citation,
                 "content": "See above for full content",
                 "raw_content": None,
+            }
+        )
+
+    return {"results": results}
+
+
+@traceable
+def exa_search(
+    query: str, max_results: int = 3, fetch_full_page: bool = False
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Search the web using the Exa API and return formatted results.
+
+    Uses the Exa Python SDK to perform AI-powered web searches with content
+    retrieval. Requires an EXA_API_KEY environment variable to be set.
+
+    Both highlights and text content are requested so the formatter can fall
+    back gracefully when one is missing for a given result.
+
+    Args:
+        query (str): The search query to execute
+        max_results (int, optional): Maximum number of results to return. Defaults to 3.
+        fetch_full_page (bool, optional): Whether to include full page text as raw_content.
+                                         When False, raw_content mirrors the snippet.
+                                         Defaults to False.
+
+    Returns:
+        Dict[str, List[Dict[str, Any]]]: Search response containing:
+            - results (list): List of search result dictionaries, each containing:
+                - title (str): Title of the search result
+                - url (str): URL of the search result
+                - content (str): Highlight or text excerpt from the page
+                - raw_content (str or None): Full page text when fetch_full_page is True,
+                                            otherwise mirrors content
+    """
+    exa = Exa(api_key=os.getenv("EXA_API_KEY"))
+    exa.headers["x-exa-integration"] = "local-deep-researcher"
+
+    contents: Dict[str, Any] = {
+        "highlights": {"num_sentences": 3, "highlights_per_url": 3},
+        "text": {"max_characters": 8000} if fetch_full_page else True,
+    }
+
+    response = exa.search_and_contents(
+        query,
+        num_results=max_results,
+        type="auto",
+        contents=contents,
+    )
+
+    results = []
+    for r in response.results:
+        title = getattr(r, "title", None) or ""
+        url = getattr(r, "url", "") or ""
+        text = getattr(r, "text", None) or ""
+        highlights = getattr(r, "highlights", None) or []
+        summary = getattr(r, "summary", None) or ""
+
+        # Cascade through highlights -> summary -> text for the snippet
+        if highlights:
+            content = "\n".join(highlights)
+        elif summary:
+            content = summary
+        else:
+            content = text
+
+        if fetch_full_page:
+            raw_content = text or content
+        else:
+            raw_content = content
+
+        if not all([url, title, content]):
+            print(f"Warning: Incomplete result from Exa: {url}")
+            continue
+
+        results.append(
+            {
+                "title": title,
+                "url": url,
+                "content": content,
+                "raw_content": raw_content,
             }
         )
 
