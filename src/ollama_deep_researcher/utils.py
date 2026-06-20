@@ -275,6 +275,81 @@ def searxng_search(
 
 
 @traceable
+def crw_search(
+    query: str, max_results: int = 3, fetch_full_page: bool = False
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Search the web using fastCRW and return formatted results.
+
+    fastCRW is a Firecrawl-compatible web data engine (single binary; self-host or
+    cloud). Its search endpoint is SearXNG-backed with reranking and multi-round
+    retrieval, making it a managed upgrade from the raw SearXNG path. The base URL
+    is read from the CRW_BASE_URL environment variable or defaults to the managed
+    cloud at https://fastcrw.com/api, and the API key is read from CRW_API_KEY
+    (optional for self-hosted instances without auth).
+
+    Args:
+        query (str): The search query to execute
+        max_results (int, optional): Maximum number of results to return. Defaults to 3.
+        fetch_full_page (bool, optional): Whether to fetch full page content from result URLs.
+                                         Defaults to False.
+
+    Returns:
+        Dict[str, List[Dict[str, Any]]]: Search response containing:
+            - results (list): List of search result dictionaries, each containing:
+                - title (str): Title of the search result
+                - url (str): URL of the search result
+                - content (str): Snippet/summary of the content
+                - raw_content (str or None): Full page content if fetch_full_page is True,
+                                           otherwise same as content
+    """
+    base_url = os.environ.get("CRW_BASE_URL", "https://fastcrw.com/api").rstrip("/")
+    api_key = os.environ.get("CRW_API_KEY")
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    response = requests.post(
+        f"{base_url}/v1/search",
+        headers=headers,
+        json={"query": query, "limit": max_results},
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    # fastCRW uses a {success, error, data} envelope (Firecrawl-compatible)
+    if not data.get("success", True):
+        print(f"Error in fastCRW search: {data.get('error')}")
+        return {"results": []}
+
+    results = []
+    for r in data.get("data", []):
+        url = r.get("url")
+        title = r.get("title")
+        content = r.get("description")
+
+        if not all([url, title, content]):
+            print(f"Warning: Incomplete result from fastCRW: {r}")
+            continue
+
+        # fastCRW can return markdown inline; otherwise fetch the page if requested
+        raw_content = content
+        if fetch_full_page:
+            raw_content = r.get("markdown") or fetch_raw_content(url)
+
+        # Add result to list
+        result = {
+            "title": title,
+            "url": url,
+            "content": content,
+            "raw_content": raw_content,
+        }
+        results.append(result)
+    return {"results": results}
+
+
+@traceable
 def tavily_search(
     query: str, fetch_full_page: bool = True, max_results: int = 3
 ) -> Dict[str, List[Dict[str, Any]]]:
