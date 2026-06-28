@@ -435,7 +435,7 @@ def route_research(
     """
 
     configurable = Configuration.from_runnable_config(config)
-    if state.research_loop_count <= configurable.max_web_research_loops:
+    if state.research_loop_count < configurable.max_web_research_loops:
         return "web_research"
     else:
         return "finalize_summary"
