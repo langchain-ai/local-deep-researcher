@@ -6,11 +6,10 @@ from typing_extensions import Literal
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
 from langgraph.graph import START, END, StateGraph
 
-from ollama_deep_researcher.configuration import Configuration, SearchAPI
-from ollama_deep_researcher.utils import (
+from local_deep_researcher.configuration import Configuration, SearchAPI
+from local_deep_researcher.utils import (
     deduplicate_and_format_sources,
     tavily_search,
     format_sources,
@@ -20,12 +19,12 @@ from ollama_deep_researcher.utils import (
     strip_thinking_tokens,
     get_config_value,
 )
-from ollama_deep_researcher.state import (
+from local_deep_researcher.state import (
     SummaryState,
     SummaryStateInput,
     SummaryStateOutput,
 )
-from ollama_deep_researcher.prompts import (
+from local_deep_researcher.prompts import (
     query_writer_instructions,
     summarizer_instructions,
     reflection_instructions,
@@ -35,7 +34,10 @@ from ollama_deep_researcher.prompts import (
     json_mode_reflection_instructions,
     tool_calling_reflection_instructions,
 )
-from ollama_deep_researcher.lmstudio import ChatLMStudio
+from langchain_ollama import ChatOllama
+from local_deep_researcher.serving_engines.lmstudio import ChatLMStudio
+from local_deep_researcher.serving_engines.vllm import ChatVLLM
+from local_deep_researcher.serving_engines.sglang import ChatSGLang
 
 # Constants
 MAX_TOKENS_PER_SOURCE = 1000
@@ -105,34 +107,29 @@ def get_llm(configurable: Configuration):
     Returns:
         Configured LLM instance
     """
-    if configurable.llm_provider == "lmstudio":
-        if configurable.use_tool_calling:
-            return ChatLMStudio(
-                base_url=configurable.lmstudio_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-            )
-        else:
-            return ChatLMStudio(
-                base_url=configurable.lmstudio_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-                format="json",
-            )
-    else:  # Default to Ollama
-        if configurable.use_tool_calling:
-            return ChatOllama(
-                base_url=configurable.ollama_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-            )
-        else:
-            return ChatOllama(
-                base_url=configurable.ollama_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-                format="json",
-            )
+    fmt = None if configurable.use_tool_calling else "json"
+    if configurable.llm_provider == "ollama":
+        return ChatOllama(
+            base_url=configurable.resolve_llm_base_url(),
+            model=configurable.local_llm,
+            temperature=0,
+            format=fmt,
+        )
+    cls_map = {
+        "lmstudio": ChatLMStudio,
+        "vllm": ChatVLLM,
+        "sglang": ChatSGLang,
+    }
+    cls = cls_map.get(configurable.llm_provider)
+    if cls is None:
+        raise ValueError(f"Unsupported llm_provider: {configurable.llm_provider}")
+    return cls(
+        base_url=configurable.resolve_llm_base_url(),
+        model=configurable.local_llm,
+        temperature=0,
+        api_key=configurable.llm_api_key,
+        format=fmt,
+    )
 
 # Nodes
 def generate_query(state: SummaryState, config: RunnableConfig):
@@ -299,19 +296,8 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
     # Run the LLM
     configurable = Configuration.from_runnable_config(config)
 
-    # For summarization, we don't need structured output, so always use regular mode
-    if configurable.llm_provider == "lmstudio":
-        llm = ChatLMStudio(
-            base_url=configurable.lmstudio_base_url,
-            model=configurable.local_llm,
-            temperature=0,
-        )
-    else:  # Default to Ollama
-        llm = ChatOllama(
-            base_url=configurable.ollama_base_url,
-            model=configurable.local_llm,
-            temperature=0,
-        )
+    # For summarization, we don't need structured output, so use plain mode (no JSON format)
+    llm = get_llm(configurable.model_copy(update={"use_tool_calling": True}))
 
     result = llm.invoke(
         [
