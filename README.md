@@ -77,7 +77,7 @@ Example below runs on **Intel XPU**.
 
   ```
   docker run -it --rm     \
-    --name lsv-container     \
+    --name vllm-service     \
     --privileged     \
     --net=host     \
     --device=/dev/dri     \
@@ -85,7 +85,7 @@ Example below runs on **Intel XPU**.
     -v ~/.cache/huggingface:/root/.cache/huggingface \
     -e VLLM_ALLOW_LONG_MAX_MODEL_LEN=1     \
     -e VLLM_WORKER_MULTIPROC_METHOD=spawn     \
-    intel/llm-scaler-vllm:0.21.0-b1    \
+    vllm/vllm-openai-xpu:v0.27.1    \
     Qwen/Qwen3-4B-Instruct-2507     \
     --dtype=bfloat16     \
     --max-model-len=8192     \
