@@ -46,8 +46,8 @@ ollama pull deepseek-r1:8b
 * If set, these values will take precedence over the defaults set in the `Configuration` class in `configuration.py`. 
 ```shell
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL="http://localhost:11434" # Ollama service endpoint, defaults to `http://localhost:11434` 
-LOCAL_LLM=model # the model to use, defaults to `llama3.2` if not set
+LLM_BASE_URL="http://localhost:11434" # Ollama service endpoint, defaults to `http://localhost:11434`
+LOCAL_LLM=model # the model to use, defaults to `llama3.2` if not set 
 ```
 
 ### Selecting local model with LMStudio
@@ -66,7 +66,75 @@ LOCAL_LLM=model # the model to use, defaults to `llama3.2` if not set
 ```shell
 LLM_PROVIDER=lmstudio
 LOCAL_LLM=qwen_qwq-32b  # Use the exact model name as shown in LMStudio
-LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LLM_BASE_URL=http://localhost:1234/v1  # Optional, this is the default
+```
+
+### Selecting local model with vLLM 
+
+1. Serve a model with vLLM via Docker. Refer to the [vLLM pre-built images guide](https://docs.vllm.ai/en/latest/getting_started/installation/gpu/#pre-built-images) for other hardware vendors. 
+
+Example below runs on **Intel XPU**.
+
+  ```
+  docker run -it --rm     \
+    --name vllm-service     \
+    --privileged     \
+    --net=host     \
+    --device=/dev/dri     \
+    --shm-size=8g     \
+    -v ~/.cache/huggingface:/root/.cache/huggingface \
+    -e VLLM_ALLOW_LONG_MAX_MODEL_LEN=1     \
+    -e VLLM_WORKER_MULTIPROC_METHOD=spawn     \
+    vllm/vllm-openai-xpu:v0.27.1    \
+    Qwen/Qwen3-4B-Instruct-2507     \
+    --dtype=bfloat16     \
+    --max-model-len=8192     \
+    --port=8000     \
+    --host=0.0.0.0     \
+    --enforce-eager  \
+    --trust-remote-code     \
+    --gpu-memory-util=0.9     \
+    --enable-prefix-caching    \
+    --enable-auto-tool-choice     \
+    --tool-call-parser=qwen3_xml
+  ```
+
+2. Update the `.env` file:
+```shell
+LLM_PROVIDER=vllm
+LOCAL_LLM=Qwen/Qwen3-4B-Instruct-2507  # Must match the model name passed to vllm serve
+LLM_BASE_URL=http://localhost:8000/v1  # Optional, this is the default
+```
+
+### Selecting local model with SGLang
+
+1. Serve a model with SGLang via Docker. Refer to the [SGLang installation guide](https://docs.sglang.io/docs/hardware-platforms/xpu#install-using-docker) for other hardware vendors. 
+
+Example below runs on **Intel XPU**.
+
+  ```
+  docker run -it --rm     \
+    --privileged     \
+    --ipc=host     \
+    --network=host     \
+    --user root     \
+    --group-add "$(getent group video | cut -d: -f3)"     \
+    --device /dev/dri     \
+    -v /dev/dri/by-path:/dev/dri/by-path     \
+    -v /dev/shm:/dev/shm     \
+    -v ~/.cache/huggingface:/root/.cache/huggingface     \
+    -e ZE_AFFINITY_MASK=0,1     \
+    -e ONEAPI_DEVICE_SELECTOR=level_zero:*     \
+    sglang-xpu:latest     \
+    /bin/bash -c \
+    'sglang serve --model-path Qwen/Qwen3-4B-Instruct-2507 --trust-remote-code --disable-overlap-schedule --device xpu --host 0.0.0.0 --tp 2 --attention-backend intel_xpu --page-size 128 --tool-call-parser qwen --grammar-backend xgrammar'
+  ```
+
+2. Update the `.env` file:
+```shell
+LLM_PROVIDER=sglang
+LOCAL_LLM=Qwen/Qwen3-4B-Instruct-2507  # Must match the model name passed to sglang serve
+LLM_BASE_URL=http://localhost:30000/v1  # Optional, this is the default
 ```
 
 ### Selecting search tool
@@ -192,7 +260,7 @@ https://github.com/PacoVK/ollama-deep-researcher-ts
 
 ## Running as a Docker container
 
-The included `Dockerfile` only runs LangChain Studio with local-deep-researcher as a service, but does not include Ollama as a dependant service. You must run Ollama separately and configure the `OLLAMA_BASE_URL` environment variable. Optionally you can also specify the Ollama model to use by providing the `LOCAL_LLM` environment variable.
+The included `Dockerfile` only runs LangChain Studio with local-deep-researcher as a service, but does not include Ollama as a dependant service. You must run Ollama separately and configure the `LLM_BASE_URL` environment variable. Optionally you can also specify the Ollama model to use by providing the `LOCAL_LLM` environment variable.
 
 Clone the repo and build an image:
 ```
@@ -205,7 +273,7 @@ $ docker run --rm -it -p 2024:2024 \
   -e SEARCH_API="tavily" \ 
   -e TAVILY_API_KEY="tvly-***YOUR_KEY_HERE***" \
   -e LLM_PROVIDER=ollama \
-  -e OLLAMA_BASE_URL="http://host.docker.internal:11434/" \
+  -e LLM_BASE_URL="http://host.docker.internal:11434" \
   -e LOCAL_LLM="llama3.2" \  
   local-deep-researcher
 ```
