@@ -1,0 +1,44 @@
+volumes:
+  langgraph-data:
+    driver: local
+services:
+  langgraph-redis:
+    image: redis:6
+    healthcheck:
+      test: redis-cli ping
+      interval: 5s
+      timeout: 1s
+      retries: 5
+  langgraph-postgres:
+    image: postgres:16
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - langgraph-data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U postgres
+      start_period: 10s
+      timeout: 1s
+      retries: 5
+      interval: 5s
+  langgraph-api:
+    build:
+      context: .
+      dockerfile: postgres.Dockerfile
+    ports:
+      - "8100:8000"
+    depends_on:
+      langgraph-redis:
+        condition: service_healthy
+      langgraph-postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      REDIS_URI: redis://langgraph-redis:6379
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+      POSTGRES_URI: postgresql://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
