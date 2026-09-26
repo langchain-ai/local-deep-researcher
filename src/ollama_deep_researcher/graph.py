@@ -17,6 +17,7 @@ from ollama_deep_researcher.utils import (
     perplexity_search,
     duckduckgo_search,
     searxng_search,
+    exa_search,
     strip_thinking_tokens,
     get_config_value,
 )
@@ -243,6 +244,17 @@ def web_research(state: SummaryState, config: RunnableConfig):
         )
     elif search_api == "searxng":
         search_results = searxng_search(
+            state.search_query,
+            max_results=3,
+            fetch_full_page=configurable.fetch_full_page,
+        )
+        search_str = deduplicate_and_format_sources(
+            search_results,
+            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
+            fetch_full_page=configurable.fetch_full_page,
+        )
+    elif search_api == "exa":
+        search_results = exa_search(
             state.search_query,
             max_results=3,
             fetch_full_page=configurable.fetch_full_page,
