@@ -1,4 +1,6 @@
 import json
+import os
+from langchain_openai import ChatOpenAI
 
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
@@ -94,45 +96,58 @@ def generate_search_query_with_structured_output(
                 content = strip_thinking_tokens(content)
             return {"search_query": fallback_query}
 
-def get_llm(configurable: Configuration):
-    """Helper function to initialize LLM based on configuration.
+def get_llm(configurable: Configuration, *, structured_output: bool = True):
+    """Create the selected backend; use JSON only for structured steps."""
+    json_mode = structured_output and not configurable.use_tool_calling
 
-    Uses JSON mode if use_tool_calling is False, otherwise regular mode for tool calling.
+    if configurable.llm_provider == "deepseek":
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+        if not api_key or api_key == "YOUR_DEEPSEEK_API_KEY":
+            raise ValueError(
+                "Set DEEPSEEK_API_KEY in your local .env file."
+            )
 
-    Args:
-        configurable: Configuration object containing LLM settings
+        llm = ChatOpenAI(
+            model=configurable.local_llm,
+            api_key=api_key,
+            base_url="https://api.deepseek.com",
+            temperature=0,
+            timeout=90,
+            max_retries=0,
+            use_responses_api=False,
+            stream_usage=False,
+            extra_body={
+                "thinking": {"type": "disabled"},
+                "max_tokens": 2048,
+            },
+        )
 
-    Returns:
-        Configured LLM instance
-    """
+        if json_mode:
+            return llm.bind(response_format={"type": "json_object"})
+        return llm
+
+    kwargs = {
+        "model": configurable.local_llm,
+        "temperature": 0,
+    }
+    if json_mode:
+        kwargs["format"] = "json"
+
     if configurable.llm_provider == "lmstudio":
-        if configurable.use_tool_calling:
-            return ChatLMStudio(
-                base_url=configurable.lmstudio_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-            )
-        else:
-            return ChatLMStudio(
-                base_url=configurable.lmstudio_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-                format="json",
-            )
-    else:  # Default to Ollama
-        if configurable.use_tool_calling:
-            return ChatOllama(
-                base_url=configurable.ollama_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-            )
-        else:
-            return ChatOllama(
-                base_url=configurable.ollama_base_url,
-                model=configurable.local_llm,
-                temperature=0,
-                format="json",
-            )
+        return ChatLMStudio(
+            base_url=configurable.lmstudio_base_url,
+            **kwargs,
+        )
+
+    if configurable.llm_provider == "ollama":
+        return ChatOllama(
+            base_url=configurable.ollama_base_url,
+            **kwargs,
+        )
+
+    raise ValueError(
+        f"Unsupported provider: {configurable.llm_provider}"
+    )
 
 # Nodes
 def generate_query(state: SummaryState, config: RunnableConfig):
@@ -299,19 +314,8 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
     # Run the LLM
     configurable = Configuration.from_runnable_config(config)
 
-    # For summarization, we don't need structured output, so always use regular mode
-    if configurable.llm_provider == "lmstudio":
-        llm = ChatLMStudio(
-            base_url=configurable.lmstudio_base_url,
-            model=configurable.local_llm,
-            temperature=0,
-        )
-    else:  # Default to Ollama
-        llm = ChatOllama(
-            base_url=configurable.ollama_base_url,
-            model=configurable.local_llm,
-            temperature=0,
-        )
+     # Summaries use normal text, not JSON mode.
+    llm = get_llm(configurable, structured_output=False)
 
     result = llm.invoke(
         [

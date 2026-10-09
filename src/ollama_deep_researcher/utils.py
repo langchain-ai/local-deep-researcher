@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Union, Optional
 from markdownify import markdownify
 from langsmith import traceable
 from tavily import TavilyClient
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 from langchain_community.utilities import SearxSearchWrapper
 
@@ -166,57 +166,48 @@ def fetch_raw_content(url: str) -> Optional[str]:
 def duckduckgo_search(
     query: str, max_results: int = 3, fetch_full_page: bool = False
 ) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Search the web using DuckDuckGo and return formatted results.
+    """Search with ddgs; fail explicitly when no usable evidence is returned."""
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("SEARCH_INVALID_QUERY: query must not be empty.")
+    if max_results < 1:
+        raise ValueError("max_results must be positive.")
 
-    Uses the DDGS library to perform web searches through DuckDuckGo.
-
-    Args:
-        query (str): The search query to execute
-        max_results (int, optional): Maximum number of results to return. Defaults to 3.
-        fetch_full_page (bool, optional): Whether to fetch full page content from result URLs.
-                                         Defaults to False.
-    Returns:
-        Dict[str, List[Dict[str, Any]]]: Search response containing:
-            - results (list): List of search result dictionaries, each containing:
-                - title (str): Title of the search result
-                - url (str): URL of the search result
-                - content (str): Snippet/summary of the content
-                - raw_content (str or None): Full page content if fetch_full_page is True,
-                                            otherwise same as content
-    """
     try:
-        with DDGS() as ddgs:
-            results = []
-            search_results = list(ddgs.text(query, max_results=max_results))
+        raw_results = DDGS(timeout=20, verify=True).text(
+            query.strip(),
+            region="us-en",
+            max_results=max_results,
+            backend="duckduckgo",
+        ) or []
+    except Exception as exc:
+        raise RuntimeError(
+            f"SEARCH_REQUEST_FAILED: {type(exc).__name__}"
+        ) from exc
 
-            for r in search_results:
-                url = r.get("href")
-                title = r.get("title")
-                content = r.get("body")
+    results = []
+    for item in raw_results:
+        if not isinstance(item, dict):
+            continue
+        fields = [item.get(k) for k in ("href", "title", "body")]
+        if not all(isinstance(v, str) and v.strip() for v in fields):
+            continue
+        url, title, content = [v.strip() for v in fields]
+        if not url.startswith(("https://", "http://")):
+            continue
+        results.append({
+            "title": title,
+            "url": url,
+            "content": content,
+            "raw_content": fetch_raw_content(url) if fetch_full_page else content,
+        })
 
-                if not all([url, title, content]):
-                    print(f"Warning: Incomplete result from DuckDuckGo: {r}")
-                    continue
+    if not results:
+        raise RuntimeError(
+            "SEARCH_NO_RESULTS: no usable sources; research stopped."
+        )
 
-                raw_content = content
-                if fetch_full_page:
-                    raw_content = fetch_raw_content(url)
-
-                # Add result to list
-                result = {
-                    "title": title,
-                    "url": url,
-                    "content": content,
-                    "raw_content": raw_content,
-                }
-                results.append(result)
-
-            return {"results": results}
-    except Exception as e:
-        print(f"Error in DuckDuckGo search: {str(e)}")
-        print(f"Full error details: {type(e).__name__}")
-        return {"results": []}
+    print(f"[search] backend=duckduckgo usable_results={len(results)}", flush=True)
+    return {"results": results}
 
 
 @traceable
