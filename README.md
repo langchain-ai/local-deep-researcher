@@ -78,7 +78,14 @@ TAVILY_API_KEY=xxx # the tavily API key to use
 PERPLEXITY_API_KEY=xxx # the perplexity API key to use
 MAX_WEB_RESEARCH_LOOPS=xxx # the maximum number of research loop steps, defaults to `3`
 FETCH_FULL_PAGE=xxx # fetch the full page content (with `duckduckgo`), defaults to `false`
+MAX_TOKENS_PER_SOURCE=xxx # approximate maximum full-page content per source, defaults to `1000`
 ```
+
+When using a local model with a small context window, lower `MAX_TOKENS_PER_SOURCE`
+or disable `FETCH_FULL_PAGE`. If the summarization model returns an empty response,
+the run stops with an actionable error instead of replacing an existing summary with
+an empty value. You can also increase the context window in Ollama or LMStudio when
+the selected model supports it.
 
 ### Running with LangGraph Studio
 

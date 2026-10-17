@@ -39,6 +39,12 @@ class Configuration(BaseModel):
         title="Fetch Full Page",
         description="Include the full page content in the search results",
     )
+    max_tokens_per_source: int = Field(
+        default=1000,
+        ge=1,
+        title="Maximum Full-Page Tokens Per Source",
+        description="Approximate maximum full-page content included per source",
+    )
     ollama_base_url: str = Field(
         default="http://localhost:11434/",
         title="Ollama Base URL",
