@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Union, Optional
 from markdownify import markdownify
 from langsmith import traceable
 from tavily import TavilyClient
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 from langchain_community.utilities import SearxSearchWrapper
 
@@ -164,7 +164,10 @@ def fetch_raw_content(url: str) -> Optional[str]:
 
 @traceable
 def duckduckgo_search(
-    query: str, max_results: int = 3, fetch_full_page: bool = False
+    query: str,
+    max_results: int = 3,
+    fetch_full_page: bool = False,
+    region: str = "us-en",
 ) -> Dict[str, List[Dict[str, Any]]]:
     """
     Search the web using DuckDuckGo and return formatted results.
@@ -176,6 +179,7 @@ def duckduckgo_search(
         max_results (int, optional): Maximum number of results to return. Defaults to 3.
         fetch_full_page (bool, optional): Whether to fetch full page content from result URLs.
                                          Defaults to False.
+        region (str, optional): Region and language for search results. Defaults to "us-en".
     Returns:
         Dict[str, List[Dict[str, Any]]]: Search response containing:
             - results (list): List of search result dictionaries, each containing:
@@ -186,33 +190,37 @@ def duckduckgo_search(
                                             otherwise same as content
     """
     try:
-        with DDGS() as ddgs:
-            results = []
-            search_results = list(ddgs.text(query, max_results=max_results))
+        results = []
+        search_results = DDGS().text(
+            query,
+            region=region,
+            max_results=max_results,
+            backend="duckduckgo",
+        )
 
-            for r in search_results:
-                url = r.get("href")
-                title = r.get("title")
-                content = r.get("body")
+        for r in search_results:
+            url = r.get("href")
+            title = r.get("title")
+            content = r.get("body")
 
-                if not all([url, title, content]):
-                    print(f"Warning: Incomplete result from DuckDuckGo: {r}")
-                    continue
+            if not all([url, title, content]):
+                print(f"Warning: Incomplete result from DuckDuckGo: {r}")
+                continue
 
-                raw_content = content
-                if fetch_full_page:
-                    raw_content = fetch_raw_content(url)
+            raw_content = content
+            if fetch_full_page:
+                raw_content = fetch_raw_content(url)
 
-                # Add result to list
-                result = {
-                    "title": title,
-                    "url": url,
-                    "content": content,
-                    "raw_content": raw_content,
-                }
-                results.append(result)
+            # Add result to list
+            result = {
+                "title": title,
+                "url": url,
+                "content": content,
+                "raw_content": raw_content,
+            }
+            results.append(result)
 
-            return {"results": results}
+        return {"results": results}
     except Exception as e:
         print(f"Error in DuckDuckGo search: {str(e)}")
         print(f"Full error details: {type(e).__name__}")
