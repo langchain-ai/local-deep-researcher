@@ -235,6 +235,7 @@ def web_research(state: SummaryState, config: RunnableConfig):
             state.search_query,
             max_results=3,
             fetch_full_page=configurable.fetch_full_page,
+            region=configurable.duckduckgo_region,
         )
         search_str = deduplicate_and_format_sources(
             search_results,

@@ -74,6 +74,7 @@ LMSTUDIO_BASE_URL=http://localhost:1234/v1
 By default, it will use [DuckDuckGo](https://duckduckgo.com/) for web search, which does not require an API key. But you can also use [SearXNG](https://docs.searxng.org/), [Tavily](https://tavily.com/) or [Perplexity](https://www.perplexity.ai/hub/blog/introducing-the-sonar-pro-api) by adding their API keys to the environment file. Optionally, update the `.env` file with the following search tool configuration and API keys. If set, these values will take precedence over the defaults set in the `Configuration` class in `configuration.py`. 
 ```shell
 SEARCH_API=xxx # the search API to use, such as `duckduckgo` (default)
+DUCKDUCKGO_REGION=xxx # DuckDuckGo result region and language, defaults to `us-en`
 TAVILY_API_KEY=xxx # the tavily API key to use
 PERPLEXITY_API_KEY=xxx # the perplexity API key to use
 MAX_WEB_RESEARCH_LOOPS=xxx # the maximum number of research loop steps, defaults to `3`

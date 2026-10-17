@@ -34,6 +34,11 @@ class Configuration(BaseModel):
     search_api: Literal["perplexity", "tavily", "duckduckgo", "searxng"] = Field(
         default="duckduckgo", title="Search API", description="Web search API to use"
     )
+    duckduckgo_region: str = Field(
+        default="us-en",
+        title="DuckDuckGo Region",
+        description="Region and language used for DuckDuckGo search results",
+    )
     fetch_full_page: bool = Field(
         default=True,
         title="Fetch Full Page",
