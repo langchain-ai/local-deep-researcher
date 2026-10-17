@@ -37,9 +37,6 @@ from ollama_deep_researcher.prompts import (
 )
 from ollama_deep_researcher.lmstudio import ChatLMStudio
 
-# Constants
-MAX_TOKENS_PER_SOURCE = 1000
-CHARS_PER_TOKEN = 4
 
 def generate_search_query_with_structured_output(
     configurable: Configuration,
@@ -216,29 +213,14 @@ def web_research(state: SummaryState, config: RunnableConfig):
             fetch_full_page=configurable.fetch_full_page,
             max_results=1,
         )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
-        )
     elif search_api == "perplexity":
         search_results = perplexity_search(
             state.search_query, state.research_loop_count
-        )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
         )
     elif search_api == "duckduckgo":
         search_results = duckduckgo_search(
             state.search_query,
             max_results=3,
-            fetch_full_page=configurable.fetch_full_page,
-        )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
             fetch_full_page=configurable.fetch_full_page,
         )
     elif search_api == "searxng":
@@ -247,13 +229,14 @@ def web_research(state: SummaryState, config: RunnableConfig):
             max_results=3,
             fetch_full_page=configurable.fetch_full_page,
         )
-        search_str = deduplicate_and_format_sources(
-            search_results,
-            max_tokens_per_source=MAX_TOKENS_PER_SOURCE,
-            fetch_full_page=configurable.fetch_full_page,
-        )
     else:
         raise ValueError(f"Unsupported search API: {configurable.search_api}")
+
+    search_str = deduplicate_and_format_sources(
+        search_results,
+        max_tokens_per_source=configurable.max_tokens_per_source,
+        fetch_full_page=configurable.fetch_full_page,
+    )
 
     return {
         "sources_gathered": [format_sources(search_results)],
@@ -322,8 +305,21 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
 
     # Strip thinking tokens if configured
     running_summary = result.content
+    if not isinstance(running_summary, str):
+        raise ValueError(
+            "The LLM returned non-text summary content. Check the selected model and "
+            "provider configuration."
+        )
     if configurable.strip_thinking_tokens:
         running_summary = strip_thinking_tokens(running_summary)
+    running_summary = running_summary.strip()
+
+    if not running_summary:
+        raise ValueError(
+            "The LLM returned an empty summary. Increase the model context window, "
+            "reduce max_tokens_per_source when full-page fetching is enabled, or "
+            "disable fetch_full_page."
+        )
 
     return {"running_summary": running_summary}
 
