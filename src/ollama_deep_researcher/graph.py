@@ -18,7 +18,7 @@ def generate_query(state: SummaryState, config: RunnableConfig):
     """LangGraph node that generates a search query based on the research topic.
     
     Uses an LLM to create an optimized search query for web research based on
-    the user's research topic. Supports both LMStudio and Ollama as LLM providers.
+    the user's research topic. Supports LMStudio, Rapid-MLX, and Ollama as LLM providers.
     
     Args:
         state: Current graph state containing the research topic
@@ -39,9 +39,13 @@ def generate_query(state: SummaryState, config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
     
     # Choose the appropriate LLM based on the provider
-    if configurable.llm_provider == "lmstudio":
+    if configurable.llm_provider in ("lmstudio", "rapidmlx"):
         llm_json_mode = ChatLMStudio(
-            base_url=configurable.lmstudio_base_url, 
+            base_url=(
+                configurable.rapidmlx_base_url
+                if configurable.llm_provider == "rapidmlx"
+                else configurable.lmstudio_base_url
+            ),
             model=configurable.local_llm, 
             temperature=0, 
             format="json"
@@ -149,9 +153,13 @@ def summarize_sources(state: SummaryState, config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
     
     # Choose the appropriate LLM based on the provider
-    if configurable.llm_provider == "lmstudio":
+    if configurable.llm_provider in ("lmstudio", "rapidmlx"):
         llm = ChatLMStudio(
-            base_url=configurable.lmstudio_base_url, 
+            base_url=(
+                configurable.rapidmlx_base_url
+                if configurable.llm_provider == "rapidmlx"
+                else configurable.lmstudio_base_url
+            ),
             model=configurable.local_llm, 
             temperature=0
         )
@@ -193,9 +201,13 @@ def reflect_on_summary(state: SummaryState, config: RunnableConfig):
     configurable = Configuration.from_runnable_config(config)
     
     # Choose the appropriate LLM based on the provider
-    if configurable.llm_provider == "lmstudio":
+    if configurable.llm_provider in ("lmstudio", "rapidmlx"):
         llm_json_mode = ChatLMStudio(
-            base_url=configurable.lmstudio_base_url, 
+            base_url=(
+                configurable.rapidmlx_base_url
+                if configurable.llm_provider == "rapidmlx"
+                else configurable.lmstudio_base_url
+            ),
             model=configurable.local_llm, 
             temperature=0, 
             format="json"
