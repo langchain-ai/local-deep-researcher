@@ -1,6 +1,6 @@
 # Local Deep Researcher
 
-Local Deep Researcher is a fully local web research assistant that uses any LLM hosted by [Ollama](https://ollama.com/search) or [LMStudio](https://lmstudio.ai/). Give it a topic and it will generate a web search query, gather web search results, summarize the results of web search, reflect on the summary to examine knowledge gaps, generate a new search query to address the gaps, and repeat for a user-defined number of cycles. It will provide the user a final markdown summary with all sources used to generate the summary.
+Local Deep Researcher is a fully local web research assistant that uses any LLM hosted by [Ollama](https://ollama.com/search), [LMStudio](https://lmstudio.ai/), or [Rapid-MLX](https://github.com/raullenchai/Rapid-MLX). Give it a topic and it will generate a web search query, gather web search results, summarize the results of web search, reflect on the summary to examine knowledge gaps, generate a new search query to address the gaps, and repeat for a user-defined number of cycles. It will provide the user a final markdown summary with all sources used to generate the summary.
 
 ![ollama-deep-research](https://github.com/user-attachments/assets/1c6b28f8-6b64-42ba-a491-1ab2875d50ea)
 
@@ -62,6 +62,27 @@ LLM_PROVIDER=lmstudio
 LOCAL_LLM=qwen_qwq-32b  # Use the exact model name as shown in LMStudio
 LMSTUDIO_BASE_URL=http://localhost:1234/v1
 ```
+
+### Selecting local model with Rapid-MLX
+
+1. On macOS with Apple Silicon (M-series), install [Rapid-MLX](https://github.com/raullenchai/Rapid-MLX):
+```shell
+pip install rapid-mlx
+```
+
+2. Start the OpenAI-compatible server (default port: 8000):
+```shell
+rapid-mlx serve qwen3.5-4b-4bit
+```
+
+3. Update the `.env` file with the following Rapid-MLX configuration settings:
+```shell
+LLM_PROVIDER=rapidmlx
+LOCAL_LLM=qwen3.5-4b-4bit
+RAPIDMLX_BASE_URL=http://localhost:8000/v1
+```
+
+No API key is required. Rapid-MLX uses the same OpenAI-compatible transport as LMStudio. Use a model name returned by `http://localhost:8000/v1/models` if you serve a different model.
 
 ### Selecting search tool
 
@@ -157,7 +178,7 @@ When accessing the LangGraph Studio UI:
 ## How it works
 
 Local Deep Researcher is inspired by [IterDRAG](https://arxiv.org/html/2410.04343v1#:~:text=To%20tackle%20this%20issue%2C%20we,used%20to%20generate%20intermediate%20answers.). This approach will decompose a query into sub-queries, retrieve documents for each one, answer the sub-query, and then build on the answer by retrieving docs for the second sub-query. Here, we do similar:
-- Given a user-provided topic, use a local LLM (via [Ollama](https://ollama.com/search) or [LMStudio](https://lmstudio.ai/)) to generate a web search query
+- Given a user-provided topic, use a local LLM (via [Ollama](https://ollama.com/search), [LMStudio](https://lmstudio.ai/), or [Rapid-MLX](https://github.com/raullenchai/Rapid-MLX)) to generate a web search query
 - Uses a search engine / tool to find relevant sources
 - Uses LLM to summarize the findings from web search related to the user-provided research topic
 - Then, it uses the LLM to reflect on the summary, identifying knowledge gaps
