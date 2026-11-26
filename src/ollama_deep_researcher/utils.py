@@ -78,6 +78,8 @@ def deduplicate_and_format_sources(
         for response in search_response:
             if isinstance(response, dict) and 'results' in response:
                 sources_list.extend(response['results'])
+            elif isinstance(response, dict):
+                sources_list.append(response)
             else:
                 sources_list.extend(response)
     else:
